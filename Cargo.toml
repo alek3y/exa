@@ -1,0 +1,8 @@
+[package]
+name = "exa"
+version = "0.2.0"
+edition = "2018"
+
+[dependencies]
+unicode-segmentation = "1.8.0"
+crossterm = "0.20"
