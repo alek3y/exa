@@ -50,6 +50,33 @@ impl Buffer {
 
 	// TODO: cursor_place
 
+	unsafe fn chunk_move(&mut self, chunk: &Range<usize>, to_where: usize) {
+		if to_where == chunk.start {
+			return;
+		}
+
+		let is_left = to_where < chunk.start;
+		let mut bytes = chunk.to_owned();
+
+		while let Some(i) = if is_left {bytes.next()} else {bytes.next_back()} {
+			let offsetted_index = if is_left {
+				i - chunk.start + to_where
+			} else {
+				i + to_where - chunk.end
+			};
+
+			self.buffer[offsetted_index] = self.buffer[i];
+			self.buffer[i] = 0;
+
+			/*
+			// TODO: Switch to unsafe code when I'm sure it won't panic lol
+
+			*self.buffer.get_unchecked_mut(offsetted_index) = *self.buffer.get_unchecked(i);
+			*self.buffer.get_unchecked_mut(i) = 0;
+			*/
+		}
+	}
+
 	pub fn gap(&self) -> &Range<usize> {
 		&self.gap
 	}
