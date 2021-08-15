@@ -8,7 +8,7 @@ pub struct Cursor {
 
 impl Cursor {
 	pub fn new(position: Position, offset: usize) -> Self {
-		Cursor {position, offset}
+		Self {position, offset}
 	}
 
 	pub fn position(&self) -> Position {

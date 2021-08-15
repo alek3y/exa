@@ -35,7 +35,7 @@ impl Buffer {
 			}
 		}
 
-		Ok(Buffer {
+		Ok(Self {
 			buffer,
 			cursor: Cursor::new(Position::new(0, 0), 0),
 			gap: 0..0,
