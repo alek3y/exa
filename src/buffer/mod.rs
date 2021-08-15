@@ -25,11 +25,21 @@ impl Buffer {
 			Vec::new()
 		};
 
+		let mut buffer_from_eof = buffer.iter().rev();
+		buffer_from_eof.find(|&&byte| byte == b'\n');
+
+		let mut is_crlf = false;
+		if let Some(&byte) = buffer_from_eof.next() {
+			if byte == b'\r' {
+				is_crlf = true;
+			}
+		}
+
 		Ok(Buffer {
 			buffer,
 			cursor: Cursor::new(Position::new(0, 0), 0),
 			gap: 0..0,
-			false,
+			is_crlf,
 			path: path.to_path_buf()
 		})
 	}
