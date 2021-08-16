@@ -67,13 +67,6 @@ impl Buffer {
 
 			self.buffer[offsetted_index] = self.buffer[i];
 			self.buffer[i] = 0;
-
-			/*
-			// TODO: Switch to unsafe code when I'm sure it won't panic lol
-
-			*self.buffer.get_unchecked_mut(offsetted_index) = *self.buffer.get_unchecked(i);
-			*self.buffer.get_unchecked_mut(i) = 0;
-			*/
 		}
 	}
 
