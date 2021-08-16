@@ -50,8 +50,8 @@ impl Buffer {
 
 	// TODO: cursor_place
 
-	unsafe fn chunk_move(&mut self, chunk: &Range<usize>, to_where: usize) {
-		if to_where == chunk.start {
+	unsafe fn chunk_move(&mut self, chunk: Range<usize>, to_where: usize) {
+		if chunk.is_empty() || chunk.start == to_where || chunk.end == to_where {
 			return;
 		}
 
@@ -85,7 +85,51 @@ impl Buffer {
 		self.gap.end - self.gap.start
 	}
 
-	// TODO: gap_move, gap_resize, gap_insert
+	pub fn gap_move(&mut self, to_where: usize) {
+		assert!(!self.gap.contains(&to_where));
+
+		if self.gap.start == to_where || self.gap.end == to_where {
+			return;
+		}
+
+		let gap_length = self.gap_len();
+		if gap_length == 0 {
+			self.gap = to_where..to_where;
+			return;
+		}
+
+		unsafe {
+			if to_where < self.gap.start {
+				self.chunk_move(to_where..self.gap.start, self.gap.end);
+				self.gap = to_where..to_where+gap_length;
+			} else {
+				self.chunk_move(self.gap.end..to_where, self.gap.start);
+				self.gap = to_where-gap_length..to_where;
+			}
+		}
+	}
+
+	pub fn gap_resize(&mut self, to_size: usize) {
+		let gap_length = self.gap_len();
+		if gap_length == to_size {
+			return;
+		}
+
+		let buffer_length = self.buffer.len();
+		unsafe {
+			if to_size > gap_length {
+				self.buffer.resize(buffer_length + to_size, 0);
+				self.chunk_move(self.gap.end..buffer_length, self.buffer.len());
+			} else {
+				self.chunk_move(self.gap.end..buffer_length, self.gap.start + to_size);
+				self.buffer.truncate(buffer_length - (gap_length - to_size));
+			}
+		}
+
+		self.gap.end = self.gap.start + to_size;
+	}
+
+	// TODO: gap_delete (range?) and gap_insert (assert cursor.position != gap)
 
 	pub fn is_crlf(&self) -> bool {
 		self.is_crlf
