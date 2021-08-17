@@ -191,7 +191,25 @@ impl Buffer {
 		self.gap.end = self.gap.start + to_size;
 	}
 
-	// TODO: gap_delete (range?) and gap_insert (assert cursor.position != gap)
+	pub fn insert(&mut self, text: &str) {
+		self.gap_move(self.cursor.offset);
+		self.cursor.offset = self.gap.start;		// Otherwise it's at the end of the gap
+
+		if text.len() > self.gap_len() {
+			self.gap_resize(text.len());		// TODO: Increase more?
+		}
+
+		for (i, &byte) in text.as_bytes().iter().enumerate() {
+			self.buffer[self.gap.start + i] = byte;
+		}
+
+		let offset = text.len();
+		self.gap.start += offset;
+		self.cursor.position.column += offset;
+		self.cursor.offset += offset;
+	}
+
+	// TODO: gap_delete (range?)
 
 	pub fn is_crlf(&self) -> bool {
 		self.is_crlf
