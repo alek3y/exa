@@ -180,7 +180,7 @@ impl Buffer {
 		let buffer_length = self.buffer.len();
 		unsafe {
 			if to_size > gap_length {
-				self.buffer.resize(buffer_length + to_size, 0);
+				self.buffer.resize(buffer_length + (to_size - gap_length), 0);
 				self.chunk_move(self.gap.end..buffer_length, self.buffer.len());
 			} else {
 				self.chunk_move(self.gap.end..buffer_length, self.gap.start + to_size);
