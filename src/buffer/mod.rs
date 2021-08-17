@@ -60,9 +60,11 @@ impl Buffer {
 
 			cursor.position.column += 1;
 			if grapheme.contains('\n') {
+
+				// Consider EOL a valid location if the column couldn't be reached
 				if cursor.position.line == position.line {
 					cursor.position.column -= 1;
-					return Err(cursor);
+					return Ok(cursor);
 				}
 
 				cursor.position.line += 1;
@@ -88,13 +90,6 @@ impl Buffer {
 					return;
 				},
 				Err(cursor) => {
-
-					// Set to EOL if the requested position couldn't be reached
-					if cursor.position.line == to_where.line && cursor.position.column > to_where.line {
-						self.cursor = cursor;
-						return;
-					}
-
 					last_found = cursor;
 				}
 			}
