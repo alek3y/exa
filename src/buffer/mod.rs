@@ -150,9 +150,7 @@ impl Buffer {
 	}
 
 	pub fn gap_move(&mut self, to_where: usize) {
-		assert!(!self.gap.contains(&to_where));
-
-		if self.gap.start == to_where || self.gap.end == to_where {
+		if self.gap.contains(&to_where) || self.gap.end == to_where {
 			return;
 		}
 
