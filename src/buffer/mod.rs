@@ -48,7 +48,83 @@ impl Buffer {
 		&self.cursor
 	}
 
-	// TODO: cursor_place
+	pub fn cursor_locate(text: &str, position: Position, offset: Option<Cursor>) -> Result<Cursor, Cursor> {
+		let mut cursor = offset.unwrap_or(Cursor::new(Position::new(0, 0), 0));
+		let text_offset = cursor.offset;
+
+		for (i, grapheme) in text.grapheme_indices(true) {
+			cursor.offset = text_offset + i;
+			if cursor.position == position {
+				return Ok(cursor);
+			}
+
+			cursor.position.column += 1;
+			if grapheme.contains('\n') {
+				if cursor.position.line == position.line {
+					cursor.position.column -= 1;
+					return Err(cursor);
+				}
+
+				cursor.position.line += 1;
+				cursor.position.column = 0;
+			}
+		}
+
+		Err(cursor)
+	}
+
+	// TODO: Refactor. Do I need `last_found`?
+	pub fn cursor_place(&mut self, to_where: Position) {
+		if to_where == self.cursor.position {
+			return;
+		}
+
+		let mut last_found: Cursor;
+		{
+			let before_gap = String::from_utf8_lossy(&self.buffer[..self.gap.start]);
+			match Self::cursor_locate(&before_gap, to_where, None) {
+				Ok(cursor) => {
+					self.cursor = cursor;
+					return;
+				},
+				Err(cursor) => {
+
+					// Set to EOL if the requested position couldn't be reached
+					if cursor.position.line == to_where.line && cursor.position.column > to_where.line {
+						self.cursor = cursor;
+						return;
+					}
+
+					last_found = cursor;
+				}
+			}
+		}
+
+		last_found.offset = self.gap.end;
+		{
+			let after_gap = String::from_utf8_lossy(&self.buffer[self.gap.end..]);
+			match Self::cursor_locate(&after_gap, to_where, Some(last_found)) {
+				Ok(cursor) => {
+					self.cursor = cursor;
+				},
+				Err(mut cursor) => {
+
+					// Set to EOF if it couldn't even match the line
+					if cursor.position.line != to_where.line {
+						cursor.offset = self.buffer.len();
+
+					// When it errors at EOF move after the last character
+					} else if cursor.offset == self.buffer.len() - 1 {
+						cursor.offset += 1;
+					}
+
+					self.cursor = cursor;
+				}
+			}
+		}
+	}
+
+	// TODO: cursor_move (relative)
 
 	unsafe fn chunk_move(&mut self, chunk: Range<usize>, to_where: usize) {
 		if chunk.is_empty() || chunk.start == to_where || chunk.end == to_where {
