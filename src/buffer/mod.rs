@@ -218,4 +218,9 @@ impl Buffer {
 	pub fn path(&self) -> &path::Path {
 		self.path.as_path()
 	}
+
+	pub fn save(&self) -> io::Result<()> {
+		// TODO: Add \n at EOF automatically?
+		fs::write(&self.path, &self.buffer)
+	}
 }
