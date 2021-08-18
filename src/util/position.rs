@@ -26,6 +26,6 @@ impl PartialOrd for Position {
 			return Some(Ordering::Greater);
 		}
 
-		return Some(Ordering::Less);
+		Some(Ordering::Less)
 	}
 }

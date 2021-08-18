@@ -49,7 +49,7 @@ impl Buffer {
 	}
 
 	pub fn cursor_locate(text: &str, position: Position, offset: Option<Cursor>) -> Result<Cursor, Cursor> {
-		let mut cursor = offset.unwrap_or(Cursor::new(Position::new(0, 0), 0));
+		let mut cursor = offset.unwrap_or_else(|| Cursor::new(Position::new(0, 0), 0));
 		let text_offset = cursor.offset;
 
 		for (i, grapheme) in text.grapheme_indices(true) {
