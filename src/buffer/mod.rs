@@ -3,9 +3,9 @@ use std::{path, ops::Range};
 use unicode_segmentation::UnicodeSegmentation;
 use std::{thread, time};
 
-pub mod position;
 pub mod cursor;
-use self::{position::Position, cursor::Cursor};
+use self::{cursor::Cursor};
+use crate::util::position::Position;
 
 #[derive(Debug)]
 pub struct Buffer {

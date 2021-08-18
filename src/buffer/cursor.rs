@@ -1,4 +1,4 @@
-use super::position::Position;
+use crate::util::position::Position;
 
 #[derive(Debug)]
 pub struct Cursor {
