@@ -2,7 +2,7 @@ use super::position::Position;
 
 #[derive(Debug)]
 pub struct Region {
-	corners: (Position, Position)
+	pub corners: (Position, Position)
 }
 
 impl Region {

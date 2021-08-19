@@ -2,8 +2,8 @@ pub mod pane;
 pub mod tab;
 use tab::Tab;
 
-trait Interface {
-	fn draw(&self);
+pub trait Interface {
+	fn draw(&self, stdout: &mut io::Stdout) -> io::Result<()>;
 }
 
 #[derive(Debug)]
