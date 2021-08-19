@@ -1,3 +1,5 @@
+pub mod position;
+pub mod region;
 pub mod pane;
 pub mod tab;
 use tab::Tab;

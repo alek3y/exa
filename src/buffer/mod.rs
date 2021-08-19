@@ -4,8 +4,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use std::{thread, time};
 
 pub mod cursor;
-use self::{cursor::Cursor};
-use crate::util::position::Position;
+pub mod position;
+use self::{cursor::Cursor, position::Position};
 
 #[derive(Debug)]
 pub struct Buffer {

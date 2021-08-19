@@ -1,5 +1,4 @@
-use crate::util::region::Region;
-use super::Interface;
+use super::{region::Region, Interface};
 
 #[derive(Debug)]
 pub struct Pane {
