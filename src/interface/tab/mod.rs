@@ -1,7 +1,7 @@
-use super::pane::Pane;
+use super::pane::Container;
 
 #[derive(Debug)]
 pub struct Tab {
 	name: String,
-	panes: Vec<Pane>
+	panes: Container
 }
