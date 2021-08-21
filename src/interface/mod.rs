@@ -6,7 +6,7 @@ pub mod tab;
 use self::{position::Position, size::Size, tab::Tab};
 
 pub trait Interface {
-	fn draw(&self, stdout: &mut io::Stdout, origin: Position, size: Size) -> io::Result<()>;
+	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()>;
 }
 
 #[derive(Debug)]

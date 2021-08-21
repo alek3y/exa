@@ -10,10 +10,13 @@ pub struct Pane {
 
 impl Pane {
 	pub fn new() -> Self {
-		Self {
-			rows: Vec::new(),
-			line_offset: 0
-		}
+		Self {rows: Vec::new(), line_offset: 0}
+	}
+}
+
+impl Default for Pane {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
@@ -24,7 +27,7 @@ impl Interface for Pane {
 	}
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum Layout {
 	Vertical,
 	Horizontal
@@ -33,7 +36,7 @@ pub enum Layout {
 #[derive(Debug)]
 pub struct Container {
 	view: Vec<(Option<Container>, Option<Pane>)>,
-	focused: usize,
+	pub focused: usize,
 	layout: Layout
 }
 
@@ -51,9 +54,25 @@ impl Container {
 		assert!(focused_view.0.is_some() ^ focused_view.1.is_some());
 
 		if focused_view.1.is_some() {
-			let mut pane = Pane::new();
-			pane.line_offset = 1;
-			self.view.push((None, Some(pane)));		// TODO: Check for direction and layout
+			let new_focused_view;
+
+			if self.layout == direction {
+				new_focused_view = (None, Some(Pane::new()));
+			} else {
+				let focused_pane = self.view.remove(self.focused).1.unwrap();
+
+				let mut container = Container::new();
+				container.layout = direction;
+				container.view.insert(0, (None, Some(focused_pane)));
+				new_focused_view = (Some(container), None);
+			}
+
+			if self.view.is_empty() {
+				self.view.push(new_focused_view);
+			} else {
+				self.view.insert(self.focused, new_focused_view);
+			}
+
 			return;
 		}
 
@@ -61,31 +80,72 @@ impl Container {
 	}
 }
 
+impl Default for Container {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl Interface for Container {
-	fn draw(&self, stdout: &mut io::Stdout, origin: Position, size: Size) -> io::Result<()> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()> {
 		queue!(stdout, cursor::SavePosition)?;
 
-		let children_size = Size::new(size.width/(self.view.len() as u16)-1, size.height);		// TODO: Check for layout
+		// TODO: Handle too many splits
+		let children_amount = self.view.len() as u16;
+		let mut children_size = match self.layout {
+			Layout::Vertical => Size::new(region.1.width / children_amount - 1, region.1.height),
+			Layout::Horizontal => Size::new(region.1.width, region.1.height / children_amount - 1)
+		};
 
-		let mut offset = origin;
+		let mut child_offset = region.0;
 		for (i, child) in self.view.iter().enumerate() {
 			if i > 0 {
-				queue!(stdout, cursor::MoveTo(offset.column-1, offset.row))?;
-				for _ in 0..children_size.height {
-					queue!(stdout, style::Print("|"))?;
-					queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft(1))?;
+				queue!(stdout, cursor::MoveTo(child_offset.column, child_offset.row))?;
+
+				match self.layout {
+					Layout::Vertical => {
+						queue!(stdout, cursor::MoveLeft(1))?;
+
+						for _ in 0..children_size.height {
+							queue!(stdout, style::Print("|"))?;
+							queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft(1))?;
+						}
+					},
+					Layout::Horizontal => {
+						queue!(stdout, cursor::MoveUp(1))?;
+
+						for _ in 0..children_size.width {
+							queue!(stdout, style::Print("-"))?;
+						}
+					},
+				}
+			}
+
+			if i == self.view.len()-1 {
+				match self.layout {
+					Layout::Vertical => {
+						children_size.width = root.width - child_offset.column;
+					},
+					Layout::Horizontal => {
+						children_size.height = root.height - child_offset.row;
+					},
 				}
 			}
 
 			if let Some(pane) = &child.1 {
-				pane.draw(stdout, offset, children_size);
+				pane.draw(stdout, (child_offset, children_size), root)?;
 			} else if let Some(container) = &child.0 {
-				container.draw(stdout, offset, children_size);
+				container.draw(stdout, (child_offset, children_size), root)?;
 			}
 
-			// TODO: Check for layout here too
-			//offset.row += size.height;
-			offset.column += children_size.width+1;
+			match self.layout {
+				Layout::Vertical => {
+					child_offset.column += children_size.width + 1;
+				},
+				Layout::Horizontal => {
+					child_offset.row += children_size.height + 1;
+				}
+			}
 		}
 
 		queue!(stdout, cursor::RestorePosition)
