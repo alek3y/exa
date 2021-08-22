@@ -90,11 +90,16 @@ impl Interface for Container {
 	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()> {
 		queue!(stdout, cursor::SavePosition)?;
 
-		// TODO: Handle too many splits
 		let children_amount = self.view.len() as u16;
 		let mut children_size = match self.layout {
-			Layout::Vertical => Size::new(region.1.width / children_amount - 1, region.1.height),
-			Layout::Horizontal => Size::new(region.1.width, region.1.height / children_amount - 1)
+			Layout::Vertical => Size::new(
+				(region.1.width / children_amount).checked_sub(1).unwrap_or(0),
+				region.1.height
+			),
+			Layout::Horizontal => Size::new(
+				region.1.width,
+				(region.1.height / children_amount).checked_sub(1).unwrap_or(0)
+			)
 		};
 
 		let mut child_offset = region.0;
