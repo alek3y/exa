@@ -6,3 +6,4 @@ edition = "2018"
 [dependencies]
 unicode-segmentation = "1.8.0"
 crossterm = "0.20"
+toml = "0.5.8"
