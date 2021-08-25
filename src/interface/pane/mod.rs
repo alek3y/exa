@@ -59,23 +59,24 @@ impl<'a> Container<'a> {
 		assert!(focused_view.0.is_some() ^ focused_view.1.is_some());
 
 		if focused_view.1.is_some() {
-			let new_focused_view;
-
+			let new_view;
+			let mut view_position = self.focused;
 			if self.layout == direction {
-				new_focused_view = (None, Some(Pane::new(file, self.options)?));
+				new_view = (None, Some(Pane::new(file, self.options)?));
+				view_position += 1;
 			} else {
 				let focused_pane = self.view.remove(self.focused).1.unwrap();
 
 				let mut container = Container::new(file, self.options)?;
 				container.layout = direction;
 				container.view.insert(0, (None, Some(focused_pane)));
-				new_focused_view = (Some(container), None);
+				new_view = (Some(container), None);
 			}
 
 			if self.view.is_empty() {
-				self.view.push(new_focused_view);
+				self.view.push(new_view);
 			} else {
-				self.view.insert(self.focused, new_focused_view);
+				self.view.insert(view_position, new_view);
 			}
 
 			return Ok(());
