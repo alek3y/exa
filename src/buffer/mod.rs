@@ -6,6 +6,7 @@ use std::{thread, time};
 pub mod cursor;
 pub mod position;
 use self::{cursor::Cursor, position::Position};
+use super::config::Config;
 
 #[derive(Debug)]
 pub struct Buffer {
@@ -14,10 +15,11 @@ pub struct Buffer {
 	gap: Range<usize>,
 	is_crlf: bool,
 	path: path::PathBuf,
+	options: Config
 }
 
 impl Buffer {
-	pub fn new(file: &str) -> io::Result<Self> {
+	pub fn new(file: &str, options: Config) -> io::Result<Self> {
 		let path = path::Path::new(file);
 		let buffer = if path.exists() {
 			fs::read(path)?
@@ -25,14 +27,18 @@ impl Buffer {
 			Vec::new()
 		};
 
-		let mut buffer_from_eof = buffer.iter().rev();
-		buffer_from_eof.find(|&&byte| byte == b'\n');
+		let eol_options = options.lookup(&["buffer", "newline"]);
 
 		let mut is_crlf = false;
-		if let Some(&byte) = buffer_from_eof.next() {
-			if byte == b'\r' {
-				is_crlf = true;
+		if eol_options.get("detect").unwrap_or(|value| value.as_bool(), true) {
+			let mut buffer_from_eof = buffer.iter().rev();
+			buffer_from_eof.find(|&&byte| byte == b'\n');
+
+			if let Some(&byte) = buffer_from_eof.next() {
+				is_crlf = byte == b'\r';
 			}
+		} else {
+			is_crlf = eol_options.get("use_crlf").unwrap_or(|value| value.as_bool(), false);
 		}
 
 		Ok(Self {
@@ -40,7 +46,8 @@ impl Buffer {
 			cursor: Cursor::new(Position::new(0, 0), 0),
 			gap: 0..0,
 			is_crlf,
-			path: path.to_path_buf()
+			path: path.to_path_buf(),
+			options
 		})
 	}
 
