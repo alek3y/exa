@@ -1,26 +1,27 @@
 use std::io;
 use crossterm::{queue, cursor, style};
 use super::{position::Position, size::Size, Interface};
+use crate::config::Config;
 
 #[derive(Debug)]
-pub struct Pane {
+pub struct Pane<'a> {
 	rows: Vec<String>,
 	line_offset: usize,
+	options: &'a Config
 }
 
-impl Pane {
-	pub fn new() -> Self {
-		Self {rows: Vec::new(), line_offset: 0}
+impl<'a> Pane<'a> {
+	pub fn new(options: &'a Config) -> Self {
+		Self {
+			rows: Vec::new(),
+			line_offset: 0,
+			options
+		}
 	}
 }
 
-impl Default for Pane {
-	fn default() -> Self {
-		Self::new()
-	}
-}
+impl Interface for Pane<'_> {
 
-impl Interface for Pane {
 	fn draw(&self, stdout: &mut io::Stdout, origin: Position, size: Size) -> io::Result<()> {
 		// TODO: Draw pane and buffer
 		Ok(())
@@ -34,18 +35,20 @@ pub enum Layout {
 }
 
 #[derive(Debug)]
-pub struct Container {
-	view: Vec<(Option<Container>, Option<Pane>)>,
+pub struct Container<'a> {
+	view: Vec<(Option<Container<'a>>, Option<Pane<'a>>)>,
 	pub focused: usize,
-	layout: Layout
+	layout: Layout,
+	options: &'a Config
 }
 
-impl Container {
-	pub fn new() -> Self {
+impl<'a> Container<'a> {
+	pub fn new(options: &'a Config) -> Self {
 		Self {
-			view: vec![(None, Some(Pane::new()))],
+			view: vec![(None, Some(Pane::new(options)))],
 			focused: 0,
-			layout: Layout::Vertical
+			layout: Layout::Vertical,
+			options
 		}
 	}
 
@@ -57,11 +60,11 @@ impl Container {
 			let new_focused_view;
 
 			if self.layout == direction {
-				new_focused_view = (None, Some(Pane::new()));
+				new_focused_view = (None, Some(Pane::new(self.options)));
 			} else {
 				let focused_pane = self.view.remove(self.focused).1.unwrap();
 
-				let mut container = Container::new();
+				let mut container = Container::new(self.options);
 				container.layout = direction;
 				container.view.insert(0, (None, Some(focused_pane)));
 				new_focused_view = (Some(container), None);
@@ -80,13 +83,7 @@ impl Container {
 	}
 }
 
-impl Default for Container {
-	fn default() -> Self {
-		Self::new()
-	}
-}
-
-impl Interface for Container {
+impl Interface for Container<'_> {
 	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()> {
 		queue!(stdout, cursor::SavePosition)?;
 

@@ -10,6 +10,6 @@ pub trait Interface {
 }
 
 #[derive(Debug)]
-struct Window {
-	tabs: Vec<Tab>
+struct Window<'a> {
+	tabs: Vec<Tab<'a>>
 }

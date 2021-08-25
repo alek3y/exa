@@ -6,20 +6,20 @@ use std::{thread, time};
 pub mod cursor;
 pub mod position;
 use self::{cursor::Cursor, position::Position};
-use super::config::Config;
+use crate::config::Config;
 
 #[derive(Debug)]
-pub struct Buffer {
+pub struct Buffer<'a> {
 	pub buffer: Vec<u8>,
 	cursor: Cursor,
 	gap: Range<usize>,
 	is_crlf: bool,
 	path: path::PathBuf,
-	options: Config
+	options: &'a Config
 }
 
-impl Buffer {
-	pub fn new(file: &str, options: Config) -> io::Result<Self> {
+impl<'a> Buffer<'a> {
+	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
 		let path = path::Path::new(file);
 		let buffer = if path.exists() {
 			fs::read(path)?

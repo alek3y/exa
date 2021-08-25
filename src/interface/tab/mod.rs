@@ -1,7 +1,7 @@
 use super::pane::Container;
 
 #[derive(Debug)]
-pub struct Tab {
+pub struct Tab<'a> {
 	name: String,
-	panes: Container
+	panes: Container<'a>
 }
