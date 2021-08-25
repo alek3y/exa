@@ -1,7 +1,6 @@
 use std::{io, fs};
 use std::{path, ops::Range};
 use unicode_segmentation::UnicodeSegmentation;
-use std::{thread, time};
 
 pub mod cursor;
 pub mod position;

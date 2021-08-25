@@ -1,5 +1,3 @@
-use crate::buffer;
-
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Position {
 	pub row: u16,

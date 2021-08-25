@@ -1,22 +1,24 @@
 use std::io;
 use crossterm::{queue, cursor, style};
 use super::{position::Position, size::Size, Interface};
-use crate::config::Config;
+use crate::{buffer::Buffer, config::Config};
 
 #[derive(Debug)]
 pub struct Pane<'a> {
+	buffer: Buffer<'a>,
 	rows: Vec<String>,
 	line_offset: usize,
 	options: &'a Config
 }
 
 impl<'a> Pane<'a> {
-	pub fn new(options: &'a Config) -> Self {
-		Self {
+	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
+		Ok(Self {
+			buffer: Buffer::new(file, options)?,
 			rows: Vec::new(),
 			line_offset: 0,
 			options
-		}
+		})
 	}
 }
 
@@ -43,16 +45,16 @@ pub struct Container<'a> {
 }
 
 impl<'a> Container<'a> {
-	pub fn new(options: &'a Config) -> Self {
-		Self {
-			view: vec![(None, Some(Pane::new(options)))],
+	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
+		Ok(Self {
+			view: vec![(None, Some(Pane::new(file, options)?))],
 			focused: 0,
 			layout: Layout::Vertical,
 			options
-		}
+		})
 	}
 
-	pub fn split(&mut self, direction: Layout) {
+	pub fn split(&mut self, file: &str, direction: Layout) -> io::Result<()> {
 		let focused_view = &mut self.view[self.focused];
 		assert!(focused_view.0.is_some() ^ focused_view.1.is_some());
 
@@ -60,11 +62,11 @@ impl<'a> Container<'a> {
 			let new_focused_view;
 
 			if self.layout == direction {
-				new_focused_view = (None, Some(Pane::new(self.options)));
+				new_focused_view = (None, Some(Pane::new(file, self.options)?));
 			} else {
 				let focused_pane = self.view.remove(self.focused).1.unwrap();
 
-				let mut container = Container::new(self.options);
+				let mut container = Container::new(file, self.options)?;
 				container.layout = direction;
 				container.view.insert(0, (None, Some(focused_pane)));
 				new_focused_view = (Some(container), None);
@@ -76,10 +78,10 @@ impl<'a> Container<'a> {
 				self.view.insert(self.focused, new_focused_view);
 			}
 
-			return;
+			return Ok(());
 		}
 
-		focused_view.0.as_mut().unwrap().split(direction);
+		focused_view.0.as_mut().unwrap().split(file, direction)
 	}
 }
 
