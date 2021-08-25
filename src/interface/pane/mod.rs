@@ -126,13 +126,14 @@ impl Interface for Container {
 				}
 			}
 
+			// TODO: Why does the last one disappear when it goes towards root.height/width?
 			if i == self.view.len()-1 {
 				match self.layout {
 					Layout::Vertical => {
-						children_size.width = root.width - child_offset.column;
+						children_size.width = root.width.saturating_sub(child_offset.column);
 					},
 					Layout::Horizontal => {
-						children_size.height = root.height - child_offset.row;
+						children_size.height = root.height.saturating_sub(child_offset.row);
 					},
 				}
 			}
