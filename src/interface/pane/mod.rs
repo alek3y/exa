@@ -23,10 +23,30 @@ impl<'a> Pane<'a> {
 }
 
 impl Interface for Pane<'_> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> io::Result<()> {
+		queue!(stdout, cursor::SavePosition)?;
 
-	fn draw(&self, stdout: &mut io::Stdout, origin: Position, size: Size) -> io::Result<()> {
-		// TODO: Draw pane and buffer
-		Ok(())
+		let line_options = self.options.lookup(&["pane", "linenumbers"]);
+		let line_suffix = line_options.get("suffix").as_string().unwrap_or_else(|| "".into());
+
+		let line_count = self.buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
+		let line_pad = format!("{}", line_count).len() + 1;
+
+		queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
+		for mut line in 0..region.1.height as usize {
+			line += self.line_offset;
+
+			let line_format = if line < line_count {
+				format!("{:>1$}{2}", line + 1, line_pad, line_suffix)
+			} else {
+				format!("{:1$}{2}", " ", line_pad, line_suffix)
+			};
+			queue!(stdout, style::Print(line_format))?;
+
+			queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft((line_pad + line_suffix.len()) as u16))?;
+		}
+
+		queue!(stdout, cursor::RestorePosition)
 	}
 }
 
