@@ -2,7 +2,7 @@ use std::{fs, io};
 use toml::{self, value};
 
 #[derive(Debug)]
-pub struct Config(Option<value::Value>);
+pub struct Config(pub Option<value::Value>);
 
 impl Config {
 	pub fn new(options: value::Value) -> Self {
@@ -33,6 +33,10 @@ impl Config {
 		root.cloned().into()
 	}
 
+	pub fn as_string(&self) -> Option<String> {
+		self.0.as_ref().and_then(|value| value.as_str()).map(|value| value.to_string())
+	}
+
 	pub fn value(&self) -> Option<&value::Value> {
 		self.0.as_ref()
 	}
@@ -43,9 +47,9 @@ impl Config {
 
 	pub fn unwrap_or<T>(&self, convert: impl FnOnce(&value::Value) -> Option<T>, default: T) -> T {
 		match self.0.as_ref() {
-			Some(value) => convert(value),
-			None => Some(default)
-		}.expect("wrong `convert` function type")
+			Some(value) => convert(value).unwrap_or(default),
+			None => default
+		}
 	}
 }
 
