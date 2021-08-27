@@ -146,10 +146,20 @@ impl Interface for Container<'_> {
 
 			match self.layout {
 				Layout::Vertical => {
-					child_offset.column += children_size.width + 1;
+					child_offset.column += children_size.width;
+
+					let max_offset = region.0.column + region.1.width;
+					if child_offset.column < max_offset {
+						child_offset.column += 1;
+					}
 				},
 				Layout::Horizontal => {
-					child_offset.row += children_size.height + 1;
+					child_offset.row += children_size.height;
+
+					let max_offset = region.0.row + region.1.height;
+					if child_offset.row < max_offset {
+						child_offset.row += 1;
+					}
 				}
 			}
 		}
