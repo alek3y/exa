@@ -1,4 +1,4 @@
-use std::{fs, io};
+use std::{fs, io, ops};
 use toml::{self, value};
 
 #[derive(Debug)]
@@ -33,23 +33,24 @@ impl Config {
 		root.cloned().into()
 	}
 
-	pub fn as_string(&self) -> Option<String> {
-		self.0.as_ref().and_then(|value| value.as_str()).map(|value| value.to_string())
-	}
-
 	pub fn value(&self) -> Option<&value::Value> {
 		self.0.as_ref()
 	}
 
-	pub fn unwrap<T>(&self, convert: impl FnOnce(&value::Value) -> Option<T>) -> T {
-		convert(self.0.as_ref().unwrap()).expect("wrong `convert` function type")
+	pub fn to_integer(&self, default: i64) -> i64 {
+		self.value().and_then(|value| value.as_integer()).unwrap_or(default)
 	}
 
-	pub fn unwrap_or<T>(&self, convert: impl FnOnce(&value::Value) -> Option<T>, default: T) -> T {
-		match self.0.as_ref() {
-			Some(value) => convert(value).unwrap_or(default),
-			None => default
-		}
+	pub fn to_float(&self, default: f64) -> f64 {
+		self.value().and_then(|value| value.as_float()).unwrap_or(default)
+	}
+
+	pub fn to_bool(&self, default: bool) -> bool {
+		self.value().and_then(|value| value.as_bool()).unwrap_or(default)
+	}
+
+	pub fn to_string(&self, default: &str) -> String {
+		self.value().and_then(|value| value.as_str()).unwrap_or(default).into()
 	}
 }
 

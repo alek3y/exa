@@ -29,7 +29,7 @@ impl<'a> Buffer<'a> {
 		let eol_options = options.lookup(&["buffer", "newline"]);
 
 		let mut is_crlf = false;
-		if eol_options.get("detect").unwrap_or(|value| value.as_bool(), true) {
+		if eol_options.get("detect").to_bool(true) {
 			let mut buffer_from_eof = buffer.iter().rev();
 			buffer_from_eof.find(|&&byte| byte == b'\n');
 
@@ -37,7 +37,7 @@ impl<'a> Buffer<'a> {
 				is_crlf = byte == b'\r';
 			}
 		} else {
-			is_crlf = eol_options.get("use_crlf").unwrap_or(|value| value.as_bool(), false);
+			is_crlf = eol_options.get("use_crlf").to_bool(false);
 		}
 
 		Ok(Self {
