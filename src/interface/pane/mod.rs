@@ -47,18 +47,23 @@ impl Interface for Pane<'_> {
 			)?;
 
 			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
-			for mut line in 0..region.1.height as usize {
-				line += self.line_offset;
+			for line in 0..region.1.height {
+				let line_number = line as usize + self.line_offset;
 
-				let line_format = if line < line_count {
-					format!("{:>1$}{2}", line + 1, padding, suffix)
+				let line_format = if line_number < line_count {
+					format!("{:>1$}{2}", line_number + 1, padding, suffix)
 				} else {
 					format!("{:1$}{2}", " ", padding, suffix)
 				};
 				queue!(stdout, style::Print(line_format))?;
 
-				queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft((padding + suffix.len()) as u16))?;
+				if line < region.1.height-1 {
+					queue!(stdout, cursor::MoveDown(1))?;
+				}
+				queue!(stdout, cursor::MoveLeft((padding + suffix.len()) as u16))?;
 			}
+
+			queue!(stdout, style::ResetColor)?;
 		}
 
 		queue!(stdout, cursor::RestorePosition)
@@ -146,9 +151,13 @@ impl Interface for Container<'_> {
 					Layout::Vertical => {
 						queue!(stdout, cursor::MoveLeft(1))?;
 
-						for _ in 0..children_size.height {
+						for line in 0..children_size.height {
 							queue!(stdout, style::Print("|"))?;
-							queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft(1))?;
+
+							if line < children_size.height-1 {
+								queue!(stdout, cursor::MoveDown(1))?;
+							}
+							queue!(stdout, cursor::MoveLeft(1))?;
 						}
 					},
 					Layout::Horizontal => {
