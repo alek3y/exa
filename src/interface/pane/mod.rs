@@ -1,18 +1,20 @@
 use std::io;
-use crossterm::{queue, cursor, style};
+use crossterm::{queue, cursor, style::{self, Color}};
+use toml::value;
+
 use super::{position::Position, size::Size, Interface};
-use crate::{buffer::Buffer, config::Config};
+use crate::buffer::Buffer;
 
 #[derive(Debug)]
 pub struct Pane<'a> {
 	buffer: Buffer<'a>,
 	rows: Vec<String>,
 	line_offset: usize,
-	options: &'a Config
+	options: &'a value::Value
 }
 
 impl<'a> Pane<'a> {
-	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
 		Ok(Self {
 			buffer: Buffer::new(file, options)?,
 			rows: Vec::new(),
@@ -26,24 +28,37 @@ impl Interface for Pane<'_> {
 	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> io::Result<()> {
 		queue!(stdout, cursor::SavePosition)?;
 
-		let line_options = self.options.lookup(&["pane", "linenumbers"]);
-		let line_suffix = line_options.get("suffix").as_string().unwrap_or_else(|| "".into());
+		let line_options = &self.options["pane"]["linenumbers"];
 
-		let line_count = self.buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
-		let line_pad = format!("{}", line_count).len() + 1;
+		if line_options["enable"].as_bool().unwrap() {
+			let line_count = self.buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
+			let padding = format!("{}", line_count).len() + 1;
+			let suffix = line_options["suffix"].as_str().unwrap();
 
-		queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
-		for mut line in 0..region.1.height as usize {
-			line += self.line_offset;
+			queue!(stdout,
+				style::SetForegroundColor(
+					Color::parse_ansi(line_options["foreground"].as_str().unwrap())
+						.unwrap_or(Color::Reset)
+				),
+				style::SetBackgroundColor(
+					Color::parse_ansi(line_options["background"].as_str().unwrap())
+						.unwrap_or(Color::Reset)
+				)
+			)?;
 
-			let line_format = if line < line_count {
-				format!("{:>1$}{2}", line + 1, line_pad, line_suffix)
-			} else {
-				format!("{:1$}{2}", " ", line_pad, line_suffix)
-			};
-			queue!(stdout, style::Print(line_format))?;
+			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
+			for mut line in 0..region.1.height as usize {
+				line += self.line_offset;
 
-			queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft((line_pad + line_suffix.len()) as u16))?;
+				let line_format = if line < line_count {
+					format!("{:>1$}{2}", line + 1, padding, suffix)
+				} else {
+					format!("{:1$}{2}", " ", padding, suffix)
+				};
+				queue!(stdout, style::Print(line_format))?;
+
+				queue!(stdout, cursor::MoveDown(1), cursor::MoveLeft((padding + suffix.len()) as u16))?;
+			}
 		}
 
 		queue!(stdout, cursor::RestorePosition)
@@ -61,11 +76,11 @@ pub struct Container<'a> {
 	view: Vec<(Option<Container<'a>>, Option<Pane<'a>>)>,
 	pub focused: usize,
 	layout: Layout,
-	options: &'a Config
+	options: &'a value::Value
 }
 
 impl<'a> Container<'a> {
-	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
 		Ok(Self {
 			view: vec![(None, Some(Pane::new(file, options)?))],
 			focused: 0,

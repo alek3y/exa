@@ -1,4 +1,3 @@
-use std::{fs, io, ops};
 use toml::value::Value;
 
 pub fn default() -> Value {
@@ -10,8 +9,8 @@ pub fn default() -> Value {
 		[pane.linenumbers]
 		enable = true
 		suffix = "|"
-		background = "#282a2e"
-		foreground = "#808281"
+		background = "2;40;42;46"
+		foreground = "2;138;140;139"
 	}
 }
 
