@@ -1,11 +1,11 @@
 use std::{io, fs};
 use std::{path, ops::Range};
 use unicode_segmentation::UnicodeSegmentation;
+use toml::value;
 
 pub mod cursor;
 pub mod position;
 use self::{cursor::Cursor, position::Position};
-use crate::config::Config;
 
 #[derive(Debug)]
 pub struct Buffer<'a> {
@@ -14,11 +14,11 @@ pub struct Buffer<'a> {
 	gap: Range<usize>,
 	is_crlf: bool,
 	path: path::PathBuf,
-	options: &'a Config
+	options: &'a value::Value
 }
 
 impl<'a> Buffer<'a> {
-	pub fn new(file: &str, options: &'a Config) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
 		let path = path::Path::new(file);
 		let buffer = if path.exists() {
 			fs::read(path)?
@@ -26,10 +26,10 @@ impl<'a> Buffer<'a> {
 			Vec::new()
 		};
 
-		let eol_options = options.lookup(&["buffer", "newline"]);
+		let eol_options = &options["buffer"]["newline"];
 
 		let mut is_crlf = false;
-		if eol_options.get("detect").to_bool(true) {
+		if eol_options["detect"].as_bool().unwrap_or(true) {
 			let mut buffer_from_eof = buffer.iter().rev();
 			buffer_from_eof.find(|&&byte| byte == b'\n');
 
@@ -37,7 +37,7 @@ impl<'a> Buffer<'a> {
 				is_crlf = byte == b'\r';
 			}
 		} else {
-			is_crlf = eol_options.get("use_crlf").to_bool(false);
+			is_crlf = eol_options["use_crlf"].as_bool().unwrap_or(false);
 		}
 
 		Ok(Self {

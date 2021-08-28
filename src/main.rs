@@ -1,20 +1,24 @@
-use std::{io, time::Duration};
+use std::{io::{self, Write}, fs, time::Duration};
 use crossterm::*;
-use exa::config::Config;
+use exa::config;
 
 const REFRESH: u64 = 100;
 
 fn main() {
-	let config = dirs::config_dir().map(|mut config_dir| {
+	let options = dirs::config_dir().map(|mut config_dir| {
 		config_dir.push("exa/config.toml");
-		let config_dir = config_dir.as_path();
 
-		let mut loaded_config = None;
-		if let Some(config_dir) = config_dir.to_str() {
-			loaded_config = Config::read(config_dir).ok();
+		let mut loaded_options = config::default();
+		if config_dir.exists() {
+			let contents = fs::read_to_string(config_dir).ok()
+				.and_then(|contents| contents.parse().ok());
+
+			if let Some(custom_options) = contents {
+				config::update(&mut loaded_options, &custom_options);
+			}
 		}
 
-		loaded_config.unwrap_or_else(|| Config::from(None))
+		loaded_options
 	}).unwrap();
 
 	let mut stdout = io::stdout();
