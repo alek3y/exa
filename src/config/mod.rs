@@ -13,6 +13,10 @@ pub fn default() -> Value {
 		background = "2;29;31;33"
 		foreground = "2;197;200;198"
 
+		[pane.layout]
+		foreground = "2;177;181;179"
+		background = "2;40;42;46"
+
 		[pane.linenumbers]
 		enable = true
 		suffix = "|"

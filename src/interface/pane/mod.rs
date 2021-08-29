@@ -163,7 +163,16 @@ impl<'a> Container<'a> {
 
 impl Interface for Container<'_> {
 	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()> {
+		use style::*;
+
 		queue!(stdout, cursor::SavePosition)?;
+
+		let layout_options = &self.options["pane"]["layout"];
+
+		queue!(stdout, SetColors(Colors {
+			foreground: Color::parse_ansi(layout_options["foreground"].as_str().unwrap()),
+			background: Color::parse_ansi(layout_options["background"].as_str().unwrap())
+		}))?;
 
 		let children_amount = self.view.len() as u16;
 		let mut children_size = match self.layout {
