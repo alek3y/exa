@@ -5,8 +5,6 @@ use toml::value;
 use super::{position::Position, size::Size, Interface};
 use crate::buffer::{Buffer, cursor::Cursor};
 
-// TODO: Put `buffer.cursor` here?
-
 #[derive(Debug)]
 pub struct Pane<'a> {
 	buffer: Buffer<'a>,
@@ -214,7 +212,6 @@ impl Interface for Container<'_> {
 				}
 			}
 
-			// TODO: Why does the last one disappear when it goes towards root.height/width?
 			if i == self.view.len()-1 {
 				match self.layout {
 					Layout::Vertical => {

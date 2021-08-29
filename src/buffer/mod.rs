@@ -81,7 +81,6 @@ impl<'a> Buffer<'a> {
 		Err(cursor)
 	}
 
-	// TODO: Refactor. Do I need `last_found`?
 	pub fn cursor_place(&mut self, to_where: Position) {
 		if to_where == self.cursor.position {
 			return;
@@ -124,8 +123,6 @@ impl<'a> Buffer<'a> {
 			}
 		}
 	}
-
-	// TODO: cursor_move (relative)
 
 	unsafe fn chunk_move(&mut self, chunk: Range<usize>, to_where: usize) {
 		if chunk.is_empty() || chunk.start == to_where || chunk.end == to_where {
@@ -202,7 +199,7 @@ impl<'a> Buffer<'a> {
 		self.cursor.offset = self.gap.start;		// Otherwise it's at the end of the gap
 
 		if text.len() > self.gap_len() {
-			self.gap_resize(text.len());		// TODO: Increase more?
+			self.gap_resize(text.len());
 		}
 
 		for (i, &byte) in text.as_bytes().iter().enumerate() {
@@ -215,8 +212,6 @@ impl<'a> Buffer<'a> {
 		self.cursor.offset += offset;
 	}
 
-	// TODO: gap_delete (range?)
-
 	pub fn is_crlf(&self) -> bool {
 		self.is_crlf
 	}
@@ -226,7 +221,6 @@ impl<'a> Buffer<'a> {
 	}
 
 	pub fn save(&self) -> io::Result<()> {
-		// TODO: Add \n at EOF automatically?
 		fs::write(&self.path, &self.buffer)
 	}
 }
