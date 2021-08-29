@@ -1,24 +1,32 @@
 use std::io;
-use crossterm::{queue, cursor, style::{self, Color}};
+use crossterm::{queue, cursor, style};
 use toml::value;
 
 use super::{position::Position, size::Size, Interface};
-use crate::buffer::Buffer;
+use crate::buffer::{Buffer, cursor::Cursor};
+
+// TODO: Put `buffer.cursor` here?
 
 #[derive(Debug)]
 pub struct Pane<'a> {
 	buffer: Buffer<'a>,
 	rows: Vec<String>,
-	line_offset: usize,
+	view_offset: Cursor,
+	line_count: usize,
 	options: &'a value::Value
 }
 
 impl<'a> Pane<'a> {
 	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
+		let buffer = Buffer::new(file, options)?;
+		let view_offset = *buffer.cursor();
+		let line_count = buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
+
 		Ok(Self {
-			buffer: Buffer::new(file, options)?,
+			buffer,
 			rows: Vec::new(),
-			line_offset: 0,
+			view_offset,
+			line_count,
 			options
 		})
 	}
@@ -26,44 +34,60 @@ impl<'a> Pane<'a> {
 
 impl Interface for Pane<'_> {
 	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> io::Result<()> {
+		use style::*;
+
 		queue!(stdout, cursor::SavePosition)?;
 
 		let line_options = &self.options["pane"]["linenumbers"];
+		let line_padding = format!("{}", self.line_count).len() + 1;
+		let line_suffix = line_options["suffix"].as_str().unwrap();
 
-		if line_options["enable"].as_bool().unwrap() {
-			let line_count = self.buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
-			let padding = format!("{}", line_count).len() + 1;
-			let suffix = line_options["suffix"].as_str().unwrap();
+		let buffer_options = &self.options["buffer"];
+		let indent_size = buffer_options["tab_size"].as_integer().map(|size| {
+			if size < 0 {0} else {size}
+		}).unwrap() as usize;
+		let indent = format!("{:1$}", " ", indent_size);
 
-			queue!(stdout,
-				style::SetForegroundColor(
-					Color::parse_ansi(line_options["foreground"].as_str().unwrap())
-						.unwrap_or(Color::Reset)
-				),
-				style::SetBackgroundColor(
-					Color::parse_ansi(line_options["background"].as_str().unwrap())
-						.unwrap_or(Color::Reset)
-				)
-			)?;
+		let mut text_offset = self.view_offset.offset;
+		let mut buffer = self.buffer.buffer[text_offset..].iter();
 
-			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
-			for line in 0..region.1.height {
-				let line_number = line as usize + self.line_offset;
+		queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
+		for line in 0..region.1.height {
+			if line_options["enable"].as_bool().unwrap() {
+				queue!(stdout, SetColors(Colors {
+					foreground: Color::parse_ansi(line_options["foreground"].as_str().unwrap()),
+					background: Color::parse_ansi(line_options["background"].as_str().unwrap())
+				}))?;
 
-				let line_format = if line_number < line_count {
-					format!("{:>1$}{2}", line_number + 1, padding, suffix)
+				let line_number = line as usize + self.view_offset.position.line;
+				let line_format = if line_number < self.line_count {
+					format!("{:>1$}{2}", line_number + 1, line_padding, line_suffix)
 				} else {
-					format!("{:1$}{2}", " ", padding, suffix)
+					format!("{:1$}{2}", " ", line_padding, line_suffix)
 				};
-				queue!(stdout, style::Print(line_format))?;
+				queue!(stdout, Print(line_format))?;
 
-				if line < region.1.height-1 {
-					queue!(stdout, cursor::MoveDown(1))?;
-				}
-				queue!(stdout, cursor::MoveLeft((padding + suffix.len()) as u16))?;
+				queue!(stdout, ResetColor)?;
 			}
 
-			queue!(stdout, style::ResetColor)?;
+			let eol = buffer.position(|&c| c == b'\n')
+				.map(|i| i+text_offset)
+				.unwrap_or_else(|| self.buffer.buffer.len());
+
+			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol]);
+			text = text.replace("\r", "").replace("\t", &indent).into();
+
+			queue!(stdout, Print(text))?;
+
+			text_offset = eol;
+			if text_offset < self.buffer.buffer.len() {
+				text_offset += 1;
+			}
+
+			if line < region.1.height-1 {
+				queue!(stdout, cursor::MoveDown(1))?;
+			}
+			queue!(stdout, cursor::MoveToColumn(region.0.column))?;
 		}
 
 		queue!(stdout, cursor::RestorePosition)
@@ -152,7 +176,7 @@ impl Interface for Container<'_> {
 						queue!(stdout, cursor::MoveLeft(1))?;
 
 						for line in 0..children_size.height {
-							queue!(stdout, style::Print("|"))?;
+							queue!(stdout, Print("|"))?;
 
 							if line < children_size.height-1 {
 								queue!(stdout, cursor::MoveDown(1))?;
@@ -164,7 +188,7 @@ impl Interface for Container<'_> {
 						queue!(stdout, cursor::MoveUp(1))?;
 
 						for _ in 0..children_size.width {
-							queue!(stdout, style::Print("-"))?;
+							queue!(stdout, Print("-"))?;
 						}
 					},
 				}
@@ -208,6 +232,7 @@ impl Interface for Container<'_> {
 			}
 		}
 
+		queue!(stdout, ResetColor)?;
 		queue!(stdout, cursor::RestorePosition)
 	}
 }

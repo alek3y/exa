@@ -1,6 +1,6 @@
 use super::position::Position;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Cursor {
 	pub position: Position,
 	pub offset: usize

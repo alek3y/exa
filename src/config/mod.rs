@@ -2,15 +2,19 @@ use toml::value::Value;
 
 pub fn default() -> Value {
 	toml::toml! {
+		[buffer]
+		tab_size = 3
+
 		[buffer.newline]
 		detect = true
 		use_crlf = false
 
+
 		[pane.linenumbers]
 		enable = true
 		suffix = "|"
-		background = "2;40;42;46"
 		foreground = "2;138;140;139"
+		background = "2;40;42;46"
 	}
 }
 
