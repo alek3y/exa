@@ -48,11 +48,13 @@ impl Interface for Pane<'_> {
 		}).unwrap() as usize;
 		let indent = format!("{:1$}", " ", indent_size);
 
+		let pane_options = &self.options["pane"];
 		let mut text_offset = self.view_offset.offset;
 		let mut buffer = self.buffer.buffer[text_offset..].iter();
 
-		queue!(stdout, cursor::MoveTo(region.0.column, region.0.row))?;
 		for line in 0..region.1.height {
+			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row + line))?;
+
 			if line_options["enable"].as_bool().unwrap() {
 				queue!(stdout, SetColors(Colors {
 					foreground: Color::parse_ansi(line_options["foreground"].as_str().unwrap()),
@@ -70,24 +72,33 @@ impl Interface for Pane<'_> {
 				queue!(stdout, ResetColor)?;
 			}
 
+			queue!(stdout, SetColors(Colors {
+				foreground: Color::parse_ansi(pane_options["foreground"].as_str().unwrap()),
+				background: Color::parse_ansi(pane_options["background"].as_str().unwrap())
+			}))?;
+
 			let eol = buffer.position(|&c| c == b'\n')
 				.map(|i| i+text_offset)
 				.unwrap_or_else(|| self.buffer.buffer.len());
 
-			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol]);
-			text = text.replace("\r", "").replace("\t", &indent).into();
+			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol]).to_string();
+			text = text.replace("\r", "").replace("\t", &indent);
 
-			queue!(stdout, Print(text))?;
+			let text_max_width = (region.1.width as usize).saturating_sub(line_padding).saturating_sub(line_suffix.len());
+			text.truncate(text_max_width);
+			queue!(stdout, Print(&text))?;
 
 			text_offset = eol;
 			if text_offset < self.buffer.buffer.len() {
 				text_offset += 1;
 			}
 
-			if line < region.1.height-1 {
-				queue!(stdout, cursor::MoveDown(1))?;
+			if text.len() < text_max_width {
+				let empty_space = format!("{:1$}", " ", text_max_width - text.len());
+				queue!(stdout, Print(empty_space))?;
 			}
-			queue!(stdout, cursor::MoveToColumn(region.0.column))?;
+
+			queue!(stdout, ResetColor)?;
 		}
 
 		queue!(stdout, cursor::RestorePosition)

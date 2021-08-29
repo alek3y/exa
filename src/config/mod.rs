@@ -9,6 +9,9 @@ pub fn default() -> Value {
 		detect = true
 		use_crlf = false
 
+		[pane]
+		background = "2;29;31;33"
+		foreground = "2;197;200;198"
 
 		[pane.linenumbers]
 		enable = true
