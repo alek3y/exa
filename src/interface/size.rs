@@ -1,4 +1,3 @@
-use std::io;
 use crossterm::terminal;
 
 #[derive(Copy, Clone, Debug)]
@@ -12,7 +11,7 @@ impl Size {
 		Self {width, height}
 	}
 
-	pub fn terminal() -> io::Result<Self> {
+	pub fn terminal() -> anyhow::Result<Self> {
 		let size = terminal::size()?;
 		Ok(Self {width: size.0, height: size.1})
 	}

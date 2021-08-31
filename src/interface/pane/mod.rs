@@ -15,7 +15,7 @@ pub struct Pane<'a> {
 }
 
 impl<'a> Pane<'a> {
-	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> anyhow::Result<Self> {
 		let buffer = Buffer::new(file, options)?;
 		let view_offset = *buffer.cursor();
 		let line_count = buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
@@ -31,7 +31,7 @@ impl<'a> Pane<'a> {
 }
 
 impl Interface for Pane<'_> {
-	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> io::Result<()> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> anyhow::Result<()> {
 		use style::*;
 
 		queue!(stdout, cursor::SavePosition)?;
@@ -99,7 +99,8 @@ impl Interface for Pane<'_> {
 			queue!(stdout, ResetColor)?;
 		}
 
-		queue!(stdout, cursor::RestorePosition)
+		queue!(stdout, cursor::RestorePosition)?;
+		Ok(())
 	}
 }
 
@@ -118,7 +119,7 @@ pub struct Container<'a> {
 }
 
 impl<'a> Container<'a> {
-	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> anyhow::Result<Self> {
 		Ok(Self {
 			view: vec![(None, Some(Pane::new(file, options)?))],
 			focused: 0,
@@ -127,7 +128,7 @@ impl<'a> Container<'a> {
 		})
 	}
 
-	pub fn split(&mut self, file: &str, direction: Layout) -> io::Result<()> {
+	pub fn split(&mut self, file: &str, direction: Layout) -> anyhow::Result<()> {
 		let focused_view = &mut self.view[self.focused];
 		assert!(focused_view.0.is_some() ^ focused_view.1.is_some());
 
@@ -160,7 +161,7 @@ impl<'a> Container<'a> {
 }
 
 impl Interface for Container<'_> {
-	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> io::Result<()> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> anyhow::Result<()> {
 		use style::*;
 
 		queue!(stdout, cursor::SavePosition)?;
@@ -250,6 +251,7 @@ impl Interface for Container<'_> {
 		}
 
 		queue!(stdout, ResetColor)?;
-		queue!(stdout, cursor::RestorePosition)
+		queue!(stdout, cursor::RestorePosition)?;
+		Ok(())
 	}
 }

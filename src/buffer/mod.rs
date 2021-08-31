@@ -1,5 +1,4 @@
-use std::{io, fs};
-use std::{path, ops::Range};
+use std::{fs, path, ops::Range};
 use unicode_segmentation::UnicodeSegmentation;
 use toml::value;
 
@@ -18,7 +17,7 @@ pub struct Buffer<'a> {
 }
 
 impl<'a> Buffer<'a> {
-	pub fn new(file: &str, options: &'a value::Value) -> io::Result<Self> {
+	pub fn new(file: &str, options: &'a value::Value) -> anyhow::Result<Self> {
 		let path = path::Path::new(file);
 		let buffer = if path.exists() {
 			fs::read(path)?
@@ -220,7 +219,8 @@ impl<'a> Buffer<'a> {
 		self.path.as_path()
 	}
 
-	pub fn save(&self) -> io::Result<()> {
-		fs::write(&self.path, &self.buffer)
+	pub fn save(&self) -> anyhow::Result<()> {
+		fs::write(&self.path, &self.buffer)?;
+		Ok(())
 	}
 }
