@@ -10,18 +10,18 @@ pub fn default() -> Value {
 		use_crlf = false
 
 		[pane]
-		background = "2;29;31;33"
-		foreground = "2;197;200;198"
+		background = "#1d1f21"
+		foreground = "#c5c8c6"
 
 		[pane.layout]
-		foreground = "2;177;181;179"
-		background = "2;40;42;46"
+		foreground = "#b1b5b3"
+		background = "#282a2e"
 
 		[pane.linenumbers]
 		enable = true
 		suffix = "|"
-		foreground = "2;138;140;139"
-		background = "2;40;42;46"
+		foreground = "#8a8c8b"
+		background = "#282a2e"
 	}
 }
 

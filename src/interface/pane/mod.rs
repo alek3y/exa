@@ -2,7 +2,7 @@ use std::io;
 use crossterm::{queue, cursor, style};
 use toml::value;
 
-use super::{position::Position, size::Size, Interface};
+use super::{position::Position, size::Size, util, Interface};
 use crate::buffer::{Buffer, cursor::Cursor};
 
 #[derive(Debug)]
@@ -54,10 +54,10 @@ impl Interface for Pane<'_> {
 			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row + line))?;
 
 			if line_options["enable"].as_bool().unwrap() {
-				queue!(stdout, SetColors(Colors {
-					foreground: Color::parse_ansi(line_options["foreground"].as_str().unwrap()),
-					background: Color::parse_ansi(line_options["background"].as_str().unwrap())
-				}))?;
+				queue!(stdout, SetColors(util::colors_guess(
+					line_options["foreground"].as_str().unwrap(),
+					line_options["background"].as_str().unwrap()
+				)))?;
 
 				let line_number = line as usize + self.view_offset.position.line;
 				let line_format = if line_number < self.line_count {
@@ -70,10 +70,10 @@ impl Interface for Pane<'_> {
 				queue!(stdout, ResetColor)?;
 			}
 
-			queue!(stdout, SetColors(Colors {
-				foreground: Color::parse_ansi(pane_options["foreground"].as_str().unwrap()),
-				background: Color::parse_ansi(pane_options["background"].as_str().unwrap())
-			}))?;
+			queue!(stdout, SetColors(util::colors_guess(
+				pane_options["foreground"].as_str().unwrap(),
+				pane_options["background"].as_str().unwrap()
+			)))?;
 
 			let eol = buffer.position(|&c| c == b'\n')
 				.map(|i| i+text_offset)
@@ -168,10 +168,10 @@ impl Interface for Container<'_> {
 
 		let layout_options = &self.options["pane"]["layout"];
 
-		queue!(stdout, SetColors(Colors {
-			foreground: Color::parse_ansi(layout_options["foreground"].as_str().unwrap()),
-			background: Color::parse_ansi(layout_options["background"].as_str().unwrap())
-		}))?;
+		queue!(stdout, SetColors(util::colors_guess(
+			layout_options["foreground"].as_str().unwrap(),
+			layout_options["background"].as_str().unwrap()
+		)))?;
 
 		let children_amount = self.view.len() as u16;
 		let mut children_size = match self.layout {
