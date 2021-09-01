@@ -3,7 +3,7 @@ use toml::value::Value;
 pub fn default() -> Value {
 	toml::toml! {
 		[buffer]
-		tab_size = 3
+		indent_size = 3
 
 		[buffer.newline]
 		detect = true
@@ -18,7 +18,7 @@ pub fn default() -> Value {
 		background = "#282a2e"
 
 		[pane.linenumbers]
-		enable = true
+		show = true
 		suffix = "|"
 		foreground = "#8a8c8b"
 		background = "#282a2e"

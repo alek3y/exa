@@ -8,9 +8,13 @@ use crate::buffer::{Buffer, cursor::Cursor};
 #[derive(Debug)]
 pub struct Pane<'a> {
 	buffer: Buffer<'a>,
-	rows: Vec<String>,
+
 	view_offset: Cursor,
 	line_count: usize,
+
+	indent_size: usize,
+	linenumbers_show: bool,
+	linenumbers_suffix: String,
 	options: &'a value::Value
 }
 
@@ -20,11 +24,24 @@ impl<'a> Pane<'a> {
 		let view_offset = *buffer.cursor();
 		let line_count = buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
 
+		let linenumbers_options = &options["pane"]["linenumbers"];
+		let linenumbers_show = linenumbers_options["show"].as_bool().unwrap();
+		let linenumbers_suffix = linenumbers_options["suffix"].as_str().unwrap().into();
+
+		let buffer_options = &options["buffer"];
+		let indent_size = buffer_options["indent_size"].as_integer().map(|size| {
+			if size < 0 {0} else {size}
+		}).unwrap() as usize;
+
 		Ok(Self {
 			buffer,
-			rows: Vec::new(),
+
 			view_offset,
 			line_count,
+
+			indent_size,
+			linenumbers_show,
+			linenumbers_suffix,
 			options
 		})
 	}
@@ -36,36 +53,35 @@ impl Interface for Pane<'_> {
 
 		queue!(stdout, cursor::SavePosition)?;
 
-		let line_options = &self.options["pane"]["linenumbers"];
-		let line_padding = format!("{}", self.line_count).len() + 1;
-		let line_suffix = line_options["suffix"].as_str().unwrap();
-
-		let buffer_options = &self.options["buffer"];
-		let indent_size = buffer_options["tab_size"].as_integer().map(|size| {
-			if size < 0 {0} else {size}
-		}).unwrap() as usize;
-		let indent = format!("{:1$}", " ", indent_size);
-
 		let pane_options = &self.options["pane"];
+		let linenumbers_options = &pane_options["linenumbers"];
+
+		let linenumbers_padding = format!("{}", self.line_count).len() + 1;
+		let indent = format!("{:1$}", " ", self.indent_size);
+
+		let pane_width = (region.1.width as usize)
+			.saturating_sub(linenumbers_padding)
+			.saturating_sub(self.linenumbers_suffix.len());
+
 		let mut text_offset = self.view_offset.offset;
 		let mut buffer = self.buffer.buffer[text_offset..].iter();
 
 		for line in 0..region.1.height {
 			queue!(stdout, cursor::MoveTo(region.0.column, region.0.row + line))?;
 
-			if line_options["enable"].as_bool().unwrap() {
+			if self.linenumbers_show {
 				queue!(stdout, SetColors(util::colors_guess(
-					line_options["foreground"].as_str().unwrap(),
-					line_options["background"].as_str().unwrap()
+					linenumbers_options["foreground"].as_str().unwrap(),
+					linenumbers_options["background"].as_str().unwrap()
 				)))?;
 
 				let line_number = line as usize + self.view_offset.position.line;
-				let line_format = if line_number < self.line_count {
-					format!("{:>1$}{2}", line_number + 1, line_padding, line_suffix)
+				let linenumbers_format = if line_number < self.line_count {
+					format!("{:>1$}{2}", line_number + 1, linenumbers_padding, self.linenumbers_suffix)
 				} else {
-					format!("{:1$}{2}", " ", line_padding, line_suffix)
+					format!("{:1$}{2}", " ", linenumbers_padding, self.linenumbers_suffix)
 				};
-				queue!(stdout, Print(line_format))?;
+				queue!(stdout, Print(linenumbers_format))?;
 
 				queue!(stdout, ResetColor)?;
 			}
@@ -82,8 +98,7 @@ impl Interface for Pane<'_> {
 			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol]).to_string();
 			text = text.replace("\r", "").replace("\t", &indent);
 
-			let text_max_width = (region.1.width as usize).saturating_sub(line_padding).saturating_sub(line_suffix.len());
-			text.truncate(text_max_width);
+			text.truncate(pane_width);
 			queue!(stdout, Print(&text))?;
 
 			text_offset = eol;
@@ -91,8 +106,8 @@ impl Interface for Pane<'_> {
 				text_offset += 1;
 			}
 
-			if text.len() < text_max_width {
-				let empty_space = format!("{:1$}", " ", text_max_width - text.len());
+			if text.len() < pane_width {
+				let empty_space = format!("{:1$}", " ", pane_width - text.len());
 				queue!(stdout, Print(empty_space))?;
 			}
 
