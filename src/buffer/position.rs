@@ -1,4 +1,4 @@
-use std::cmp::{PartialOrd, Ordering};
+use std::cmp::Ordering;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct Position {

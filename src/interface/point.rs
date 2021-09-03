@@ -1,10 +1,10 @@
 #[derive(PartialEq, Copy, Clone, Debug)]
-pub struct Position {
+pub struct Point {
 	pub row: u16,
 	pub column: u16
 }
 
-impl Position {
+impl Point {
 	pub fn new(row: u16, column: u16) -> Self {
 		Self {row, column}
 	}

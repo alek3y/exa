@@ -1,32 +1,36 @@
 use std::io;
+use unicode_segmentation::UnicodeSegmentation;
 use crossterm::{queue, cursor, style};
 use toml::value;
 
-use super::{position::Position, size::Size, util, Interface};
-use crate::buffer::{Buffer, cursor::Cursor};
+pub mod marker;
+pub mod selection;
+use marker::Marker;
+
+use crate::buffer::{Buffer, position::Position};
+use super::{point::Point, size::Size, util, Interface};
 
 #[derive(Debug)]
 pub struct Pane<'a> {
-	buffer: Buffer<'a>,
+	pub buffer: Buffer<'a>,
+	cursor: Marker,
 
-	view_offset: Cursor,
+	view_offset: Marker,
 	line_count: usize,
 
 	indent_size: usize,
 	linenumbers_show: bool,
-	linenumbers_suffix: String,
 	options: &'a value::Value
 }
 
 impl<'a> Pane<'a> {
 	pub fn new(file: &str, options: &'a value::Value) -> anyhow::Result<Self> {
 		let buffer = Buffer::new(file, options)?;
-		let view_offset = *buffer.cursor();
-		let line_count = buffer.buffer.iter().filter(|&&c| c == b'\n').count() + 1;
+		let cursor = Marker::new(0, Position::new(0, 0));
+		let line_count = buffer.buffer.iter().filter(|&&byte| byte == b'\n').count() + 1;
 
 		let linenumbers_options = &options["pane"]["linenumbers"];
 		let linenumbers_show = linenumbers_options["show"].as_bool().unwrap();
-		let linenumbers_suffix = linenumbers_options["suffix"].as_str().unwrap().into();
 
 		let buffer_options = &options["buffer"];
 		let indent_size = buffer_options["indent_size"].as_integer().map(|size| {
@@ -35,33 +39,112 @@ impl<'a> Pane<'a> {
 
 		Ok(Self {
 			buffer,
+			cursor,
 
-			view_offset,
+			view_offset: cursor,
 			line_count,
 
 			indent_size,
 			linenumbers_show,
-			linenumbers_suffix,
 			options
 		})
+	}
+
+	pub fn cursor_locate(&self, position: Position) -> usize {
+		if self.cursor.position == position {
+			return self.cursor.offset;
+		}
+
+		let mut buffer = self.buffer.buffer.iter();
+
+		let mut line_offset = 0;
+		for _ in 0..position.line {
+			if let Some(relative_offset) = buffer.position(|&byte| byte == b'\n') {
+				line_offset += relative_offset + 1;
+			} else {
+				break;
+			}
+		}
+
+		let eol = if let Some(offset) = buffer.position(|&byte| byte == b'\n') {
+			if offset > 0 && self.buffer.buffer[offset-1] == b'\r' {
+				offset-1
+			} else {
+				offset
+			}
+		} else {
+			self.buffer.buffer.len()
+		};
+
+		let line_text = String::from_utf8_lossy(&self.buffer.buffer[line_offset..eol]);
+
+		let mut column = 0;
+		let mut column_offset = 0;
+		for grapheme in line_text.graphemes(true) {
+			if column == position.column {
+				break;
+			}
+
+			column_offset += grapheme.len();
+			if grapheme.as_bytes() != [0] {
+				column += 1;
+			}
+		}
+
+		line_offset + column_offset
+	}
+
+	pub fn cursor_place(&mut self, position: Position) {
+		self.cursor.offset = self.cursor_locate(position);
+		self.cursor.position = position;
+	}
+
+	pub fn insert(&mut self, text: &str) {
+		let buffer = &mut self.buffer;
+
+		buffer.gap_move(self.cursor.offset);
+		self.cursor.offset = buffer.gap.start;
+
+		if text.len() > buffer.gap_len() {
+			buffer.gap_resize(text.len());
+		}
+
+		for (i, &byte) in text.as_bytes().iter().enumerate() {
+			buffer.buffer[buffer.gap.start + i] = byte;
+		}
+
+		let offset = text.len();
+		buffer.gap.start += offset;
+		self.cursor.position.column += offset;
+		self.cursor.offset += offset;
 	}
 }
 
 impl Interface for Pane<'_> {
-	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), _: Size) -> anyhow::Result<()> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Point, Size), _: Size) -> anyhow::Result<()> {
 		use style::*;
 
 		queue!(stdout, cursor::SavePosition)?;
 
 		let pane_options = &self.options["pane"];
-		let linenumbers_options = &pane_options["linenumbers"];
+		let pane_colors = (
+			pane_options["foreground"].as_str().unwrap(),
+			pane_options["background"].as_str().unwrap()
+		);
 
+		let linenumbers_options = &pane_options["linenumbers"];
+		let linenumbers_colors = (
+			linenumbers_options["foreground"].as_str().unwrap(),
+			linenumbers_options["background"].as_str().unwrap()
+		);
+
+		let linenumbers_suffix = linenumbers_options["suffix"].as_str().unwrap();
 		let linenumbers_padding = format!("{}", self.line_count).len() + 1;
 		let indent = format!("{:1$}", " ", self.indent_size);
 
 		let pane_width = (region.1.width as usize)
 			.saturating_sub(linenumbers_padding)
-			.saturating_sub(self.linenumbers_suffix.len());
+			.saturating_sub(linenumbers_suffix.len());
 
 		let mut text_offset = self.view_offset.offset;
 		let mut buffer = self.buffer.buffer[text_offset..].iter();
@@ -71,15 +154,14 @@ impl Interface for Pane<'_> {
 
 			if self.linenumbers_show {
 				queue!(stdout, SetColors(util::colors_guess(
-					linenumbers_options["foreground"].as_str().unwrap(),
-					linenumbers_options["background"].as_str().unwrap()
+					linenumbers_colors.0, linenumbers_colors.1
 				)))?;
 
 				let line_number = line as usize + self.view_offset.position.line;
 				let linenumbers_format = if line_number < self.line_count {
-					format!("{:>1$}{2}", line_number + 1, linenumbers_padding, self.linenumbers_suffix)
+					format!("{:>1$}{2}", line_number + 1, linenumbers_padding, linenumbers_suffix)
 				} else {
-					format!("{:1$}{2}", " ", linenumbers_padding, self.linenumbers_suffix)
+					format!("{:1$}{2}", " ", linenumbers_padding, linenumbers_suffix)
 				};
 				queue!(stdout, Print(linenumbers_format))?;
 
@@ -87,11 +169,10 @@ impl Interface for Pane<'_> {
 			}
 
 			queue!(stdout, SetColors(util::colors_guess(
-				pane_options["foreground"].as_str().unwrap(),
-				pane_options["background"].as_str().unwrap()
+				pane_colors.0, pane_colors.1
 			)))?;
 
-			let eol = buffer.position(|&c| c == b'\n')
+			let eol = buffer.position(|&byte| byte == b'\n')
 				.map(|i| i+text_offset)
 				.unwrap_or_else(|| self.buffer.buffer.len());
 
@@ -176,7 +257,7 @@ impl<'a> Container<'a> {
 }
 
 impl Interface for Container<'_> {
-	fn draw(&self, stdout: &mut io::Stdout, region: (Position, Size), root: Size) -> anyhow::Result<()> {
+	fn draw(&self, stdout: &mut io::Stdout, region: (Point, Size), root: Size) -> anyhow::Result<()> {
 		use style::*;
 
 		queue!(stdout, cursor::SavePosition)?;
