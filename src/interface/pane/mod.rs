@@ -57,18 +57,23 @@ impl<'a> Pane<'a> {
 
 		let mut buffer = self.buffer.buffer.iter();
 
-		let mut line_offset = 0;
-		for _ in 0..position.line {
-			if let Some(relative_offset) = buffer.position(|&byte| byte == b'\n') {
-				line_offset += relative_offset + 1;
-			} else {
+		let mut start_offset = 0;
+
+		let mut next_newline = None;
+		let mut line = 0;
+		while let Some(offset) = buffer.position(|&byte| byte == b'\n') {
+			if line >= position.line {
+				next_newline = Some(start_offset + offset);
 				break;
 			}
+
+			start_offset += offset + 1;
+			line += 1;
 		}
 
-		let eol = if let Some(offset) = buffer.position(|&byte| byte == b'\n') {
+		let eol = if let Some(offset) = next_newline {
 			if offset > 0 && self.buffer.buffer[offset-1] == b'\r' {
-				offset-1
+				offset - 1
 			} else {
 				offset
 			}
@@ -76,22 +81,21 @@ impl<'a> Pane<'a> {
 			self.buffer.buffer.len()
 		};
 
-		let line_text = String::from_utf8_lossy(&self.buffer.buffer[line_offset..eol]);
+		let line_text = String::from_utf8_lossy(&self.buffer.buffer[start_offset..eol]);
 
 		let mut column = 0;
-		let mut column_offset = 0;
-		for (i, grapheme) in line_text.grapheme_indices(true) {
+		for grapheme in line_text.graphemes(true) {
 			if column >= position.column {
 				break;
 			}
 
-			column_offset += grapheme.len();
-			if !self.buffer.gap.contains(&i) {
+			if !self.buffer.gap.contains(&start_offset) {
 				column += 1;
 			}
+			start_offset += grapheme.len();
 		}
 
-		line_offset + column_offset
+		start_offset
 	}
 
 	pub fn cursor_place(&mut self, position: Position) {
