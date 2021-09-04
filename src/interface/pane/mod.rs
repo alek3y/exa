@@ -80,13 +80,13 @@ impl<'a> Pane<'a> {
 
 		let mut column = 0;
 		let mut column_offset = 0;
-		for grapheme in line_text.graphemes(true) {
-			if column == position.column {
+		for (i, grapheme) in line_text.grapheme_indices(true) {
+			if column >= position.column {
 				break;
 			}
 
 			column_offset += grapheme.len();
-			if grapheme.as_bytes() != [0] {
+			if !self.buffer.gap.contains(&i) {
 				column += 1;
 			}
 		}
