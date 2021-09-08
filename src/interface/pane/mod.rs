@@ -117,10 +117,10 @@ impl<'a> Pane<'a> {
 			buffer.buffer[buffer.gap.start + i] = byte;
 		}
 
-		let offset = text.len();
-		buffer.gap.start += offset;
-		self.cursor.position.column += offset;
-		self.cursor.offset += offset;
+		let filled_length = text.len();
+		buffer.gap.start += filled_length;
+		self.cursor.position.column += text.graphemes(true).count();
+		self.cursor.offset += filled_length;
 	}
 }
 
