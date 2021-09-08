@@ -10,6 +10,8 @@ use marker::Marker;
 use crate::buffer::{Buffer, position::Position};
 use super::{point::Point, size::Size, util, Interface};
 
+const BUFFER_GAP_RATIO: usize = 2;
+
 #[derive(Debug)]
 pub struct Pane<'a> {
 	pub buffer: Buffer<'a>,
@@ -108,7 +110,7 @@ impl<'a> Pane<'a> {
 		self.cursor.offset = buffer.gap.start;
 
 		if text.len() > buffer.gap_len() {
-			buffer.gap_resize(text.len());
+			buffer.gap_resize(buffer.buffer.len()/BUFFER_GAP_RATIO + text.len());
 		}
 
 		for (i, &byte) in text.as_bytes().iter().enumerate() {
