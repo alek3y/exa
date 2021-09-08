@@ -42,6 +42,9 @@ fn main() {
 		}
 	}
 
-	execute!(stdout, cursor::Show).unwrap();
+	execute!(stdout,
+		cursor::Show,
+		terminal::LeaveAlternateScreen
+	).unwrap();
 	terminal::disable_raw_mode().unwrap();
 }
