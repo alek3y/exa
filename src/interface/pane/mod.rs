@@ -146,9 +146,12 @@ impl Interface for Pane<'_> {
 		let linenumbers_padding = format!("{}", self.line_count).len() + 1;
 		let indent = format!("{:1$}", " ", self.indent_size);
 
-		let pane_width = (region.1.width as usize)
-			.saturating_sub(linenumbers_padding)
-			.saturating_sub(linenumbers_suffix.len());
+		let mut pane_width = region.1.width as usize;
+		if self.linenumbers_show {
+			pane_width = pane_width
+				.saturating_sub(linenumbers_padding)
+				.saturating_sub(linenumbers_suffix.len());
+		}
 
 		let mut text_offset = self.view_offset.offset;
 		let mut buffer = self.buffer.buffer[text_offset..].iter();
