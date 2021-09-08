@@ -237,35 +237,46 @@ impl<'a> Container<'a> {
 		})
 	}
 
-	pub fn split(&mut self, file: &str, direction: Layout) -> anyhow::Result<()> {
-		let focused_view = &mut self.view[self.focused];
-		assert!(focused_view.0.is_some() ^ focused_view.1.is_some());
-
-		if focused_view.1.is_some() {
-			let new_view;
-			let mut view_position = self.focused;
-			if self.layout == direction {
-				new_view = (None, Some(Pane::new(file, self.options)?));
-				view_position += 1;
-			} else {
-				let focused_pane = self.view.remove(self.focused).1.unwrap();
-
-				let mut container = Container::new(file, self.options)?;
-				container.layout = direction;
-				container.view.insert(0, (None, Some(focused_pane)));
-				new_view = (Some(container), None);
-			}
-
-			if self.view.is_empty() {
-				self.view.push(new_view);
-			} else {
-				self.view.insert(view_position, new_view);
-			}
-
-			return Ok(());
+	pub fn focused(&mut self) -> &mut Self {
+		if self.view[self.focused].1.is_some() {
+			return self;
 		}
 
-		focused_view.0.as_mut().unwrap().split(file, direction)
+		return self.view[self.focused].0
+			.as_mut()
+			.expect("found empty container with no focused pane")
+			.focused();
+	}
+
+	pub fn focused_pane(&mut self) -> &mut Pane<'a> {
+		let parent = self.focused();
+		parent.view[parent.focused].1.as_mut().expect("what the fuck?")
+	}
+
+	pub fn split(&mut self, file: &str, direction: Layout) -> anyhow::Result<()> {
+		let parent = self.focused();
+
+		let new_view;
+		let mut view_position = parent.focused;
+		if parent.layout == direction {
+			new_view = (None, Some(Pane::new(file, parent.options)?));
+			view_position += 1;
+		} else {
+			let focused_pane = parent.view.remove(parent.focused).1.unwrap();
+
+			let mut container = Container::new(file, parent.options)?;
+			container.layout = direction;
+			container.view.insert(0, (None, Some(focused_pane)));
+			new_view = (Some(container), None);
+		}
+
+		if parent.view.is_empty() {
+			parent.view.push(new_view);
+		} else {
+			parent.view.insert(view_position, new_view);
+		}
+
+		Ok(())
 	}
 }
 
