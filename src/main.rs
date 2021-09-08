@@ -25,7 +25,8 @@ fn main() {
 	terminal::enable_raw_mode().unwrap();
 	execute!(stdout, 
 		terminal::EnterAlternateScreen,
-		terminal::Clear(terminal::ClearType::All)
+		terminal::Clear(terminal::ClearType::All),
+		cursor::Hide
 	).unwrap();
 
 	loop {
@@ -41,5 +42,6 @@ fn main() {
 		}
 	}
 
+	execute!(stdout, cursor::Show).unwrap();
 	terminal::disable_raw_mode().unwrap();
 }
