@@ -58,7 +58,6 @@ impl<'a> Pane<'a> {
 		let mut buffer = self.buffer.buffer.iter();
 
 		let mut start_offset = 0;
-
 		let mut next_newline = None;
 		let mut line = 0;
 		while let Some(offset) = buffer.position(|&byte| byte == b'\n') {
@@ -82,7 +81,6 @@ impl<'a> Pane<'a> {
 		};
 
 		let line_text = String::from_utf8_lossy(&self.buffer.buffer[start_offset..eol]);
-
 		let mut column = 0;
 		for grapheme in line_text.graphemes(true) {
 			if column >= position.column {
@@ -166,11 +164,17 @@ impl Interface for Pane<'_> {
 
 				let line_number = line as usize + self.view_offset.position.line;
 				let linenumbers_format = if line_number < self.line_count {
-					format!("{:>1$}{2}", line_number + 1, linenumbers_padding, linenumbers_suffix)
+					format!("{:>1$}", line_number + 1, linenumbers_padding)
 				} else {
-					format!("{:1$}{2}", " ", linenumbers_padding, linenumbers_suffix)
+					format!("{:1$}", " ", linenumbers_padding)
 				};
-				queue!(stdout, Print(linenumbers_format))?;
+
+				queue!(stdout,
+					SetAttributes(util::attributes_load(&linenumbers_options["style"])),
+					Print(linenumbers_format),
+					SetAttribute(Attribute::NormalIntensity),
+					Print(linenumbers_suffix)
+				)?;
 
 				queue!(stdout, ResetColor)?;
 			}
@@ -183,8 +187,10 @@ impl Interface for Pane<'_> {
 				.map(|i| i+text_offset)
 				.unwrap_or_else(|| self.buffer.buffer.len());
 
-			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol]).to_string();
-			text = text.replace("\r", "").replace("\t", &indent);
+			let mut text = String::from_utf8_lossy(&self.buffer.buffer[text_offset..eol])
+				.to_string()
+				.replace("\r", "")
+				.replace("\t", &indent);
 
 			text.truncate(pane_width);
 			queue!(stdout, Print(&text))?;

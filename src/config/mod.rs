@@ -19,6 +19,7 @@ pub fn default() -> Value {
 
 		[pane.linenumbers]
 		show = true
+		style = {bold = false, italic = false, dim = false}
 		suffix = "|"
 		foreground = "#8a8c8b"
 		background = "#282a2e"
